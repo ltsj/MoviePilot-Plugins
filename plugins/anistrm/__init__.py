@@ -142,24 +142,32 @@ class ANiStrm(_PluginBase):
     @retry(Exception, tries=3, logger=logger, ret=[])
     def get_latest_list(self) -> List:
         addr = 'https://api.ani.rip/ani-download.xml'
-        ret = RequestUtils(ua=settings.USER_AGENT if settings.USER_AGENT else None,
-                           proxies=settings.PROXY if settings.PROXY else None).get_res(addr)
+        ret = RequestUtils(
+            ua=settings.USER_AGENT if settings.USER_AGENT else None,
+            proxies=settings.PROXY if settings.PROXY else None
+        ).get_res(addr)
         ret_xml = ret.text
         ret_array = []
+    
         # 解析XML
         dom_tree = xml.dom.minidom.parseString(ret_xml)
         rootNode = dom_tree.documentElement
         items = rootNode.getElementsByTagName("item")
+        
         for item in items:
-            rss_info = {}
-            # 标题
             title = DomUtils.tag_value(item, "title", default="")
-            # 链接
+            # 过滤掉标题中包含 "中文配音" 的条目
+            if "中文配音" in title:
+                continue
+    
             link = DomUtils.tag_value(item, "link", default="")
-            rss_info['title'] = title
-            rss_info['link'] = link.replace("resources.ani.rip", "openani.an-i.workers.dev")
+            rss_info = {
+                'title': title,
+                'link': link.replace("resources.ani.rip", "openani.an-i.workers.dev")
+            }
             ret_array.append(rss_info)
-        return ret_array
+    
+    return ret_array
 
     def __touch_strm_file(self, file_name, file_url: str = None) -> bool:
         if not file_url:
